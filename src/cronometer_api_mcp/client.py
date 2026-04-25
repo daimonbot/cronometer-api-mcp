@@ -332,6 +332,30 @@ class CronometerClient:
         return foods
 
     # ------------------------------------------------------------------
+    # Barcode lookup
+    # ------------------------------------------------------------------
+
+    def lookup_barcode(self, barcode: str) -> list[dict]:
+        """Look up foods by EAN/UPC barcode.
+
+        Hits the same endpoint the Android app's barcode scanner uses.
+        Returns the (possibly empty) list of matching food objects, each with
+        keys: id, name, source, barcodes, nutrients, measures, defaultMeasureId,
+        labelType, etc. Note: response shape mirrors get_food, not find_food --
+        these are full food objects, not search hits.
+
+        Args:
+            barcode: EAN-13 / UPC-A digit string. Leading zeros are accepted
+                     by the server but matching is exact, so try both with and
+                     without padding when a code is ambiguous.
+        """
+        payload = {"query": barcode}
+        data = self._request("/api/v2/barcode", payload)
+        foods = data.get("foods", []) or []
+        logger.info("Barcode %s -> %d match(es)", barcode, len(foods))
+        return foods
+
+    # ------------------------------------------------------------------
     # Food details
     # ------------------------------------------------------------------
 

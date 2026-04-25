@@ -523,6 +523,62 @@ def add_custom_food(
 
 
 # ------------------------------------------------------------------
+# Barcode lookup
+# ------------------------------------------------------------------
+
+
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
+def lookup_food_by_barcode(barcode: str) -> str:
+    """Look up foods by EAN/UPC barcode.
+
+    Hits the same endpoint the Cronometer Android scanner uses. Returns a
+    list of matching food objects with id, name, source, barcodes,
+    defaultMeasureId, and measures. Empty list when the code is not in
+    Cronometer's database -- in that case fall back to search_foods or
+    add_custom_food.
+
+    Args:
+        barcode: EAN-13 / UPC-A digit string. Try both with and without the
+                 leading 0 if the first attempt returns no matches.
+    """
+    try:
+        client = _get_client()
+        foods = client.lookup_barcode(barcode)
+        if not foods:
+            return _ok({"barcode": barcode, "matches": 0, "foods": []})
+        slim = []
+        for f in foods:
+            slim.append(
+                {
+                    "food_id": f.get("id"),
+                    "name": f.get("name"),
+                    "source": f.get("source"),
+                    "barcodes": f.get("barcodes", []),
+                    "default_measure_id": f.get("defaultMeasureId"),
+                    "measures": [
+                        {
+                            "measure_id": m.get("id"),
+                            "name": m.get("name"),
+                            "grams": m.get("value"),
+                        }
+                        for m in (f.get("measures") or [])[:10]
+                    ],
+                    "labelType": f.get("labelType"),
+                }
+            )
+        return _ok({"barcode": barcode, "matches": len(foods), "foods": slim})
+    except Exception as e:
+        return _err(e)
+
+
+# ------------------------------------------------------------------
 # Macro targets
 # ------------------------------------------------------------------
 
